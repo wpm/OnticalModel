@@ -1,2 +1,1 @@
-def hello() -> str:
-    return "Hello from onticalmodel!"
+__version__ = "0.1.0"
