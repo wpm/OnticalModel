@@ -10,5 +10,8 @@ COPY . /workspace
 RUN pip install -e . && \
     pip install --upgrade 'msgpack>=1.1.1'
 
+# Add workspace to PYTHONPATH so test module is importable
+ENV PYTHONPATH=/workspace:$PYTHONPATH
+
 # Set default command (will be overridden in docker-compose)
 CMD ["bash"]

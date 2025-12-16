@@ -24,7 +24,7 @@ class OnticalModelServerArgs(BaseModel):
     )
     schema_class: str = Field(
         description="Fully qualified name of the Pydantic schema class "
-        "(e.g., 'ontical_model.schemas.Colors')"
+        "(e.g., 'test.schemas.Colors')"
     )
     initial_prompt: str = Field(
         default="Answer questions accurately and succinctly.",
@@ -98,7 +98,7 @@ def app_builder(args: OnticalModelServerArgs) -> serve.Application:
     Example usage via CLI:
         serve run server:app_builder model_name="llama3.2:1b" \\
             base_url="http://localhost:11434/v1" \\
-            schema_class="ontical_model.schemas.Colors"
+            schema_class="test.schemas.Colors"
 
     Example usage via YAML config:
         applications:
@@ -107,7 +107,7 @@ def app_builder(args: OnticalModelServerArgs) -> serve.Application:
             args:
               model_name: "llama3.2:1b"
               base_url: "http://localhost:11434/v1"
-              schema_class: "ontical_model.schemas.Colors"
+              schema_class: "test.schemas.Colors"
     """
     # Dynamically import the schema class
     module_name, class_name = args.schema_class.rsplit(".", 1)

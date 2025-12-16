@@ -2,7 +2,7 @@ import requests
 from langchain_openai import ChatOpenAI
 
 from ontical_model.langgraph_agent import LangGraphAgent
-from ontical_model.test_schemas import Colors
+from test.schemas import Colors
 
 
 def test_opposites_model_answer(chat_model: ChatOpenAI):
