@@ -1,0 +1,13 @@
+services:
+  llm-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: llm-server
+    ports:
+      - "11434:11434"  # Ollama API
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  ollama_data:
