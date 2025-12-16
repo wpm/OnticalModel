@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from langchain_openai import ChatOpenAI
 from ray.serve.handle import DeploymentHandle
 
@@ -7,7 +5,7 @@ from ontical_model.chat_agent import ChatAgent
 from ontical_model.schemas import Colors
 
 
-def test_opposites_model_answer(chat_model: ChatOpenAI, opposites_yml: Path):
+def test_opposites_model_answer(chat_model: ChatOpenAI):
     agent = ChatAgent(chat_model, Colors, "Answer questions accurately and succinctly.")
     reply, colors = agent("A", "What are the colors in the American flag?")
     assert reply

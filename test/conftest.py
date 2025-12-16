@@ -16,11 +16,6 @@ def fixtures() -> Path:
 
 
 @pytest.fixture
-def opposites_yml(fixtures: Path) -> Path:
-    return fixtures / "opposites.yml"
-
-
-@pytest.fixture
 def llm_base_url() -> str:
     # For local tests (non-Ray)
     llm_host = os.environ.get("LLM_HOST", "localhost")
