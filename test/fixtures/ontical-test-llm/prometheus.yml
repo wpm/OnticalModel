@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'ray'
+    static_configs:
+      - targets: ['ray-server:8081']
+        labels:
+          instance: 'ray-head'

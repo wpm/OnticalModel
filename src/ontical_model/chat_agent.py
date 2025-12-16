@@ -1,5 +1,10 @@
 from datetime import datetime
-from typing import Type, TypedDict, Annotated, NotRequired
+from typing import Type, TypedDict, Annotated, Generic, TypeVar
+
+try:
+    from typing import NotRequired  # Python 3.11+
+except ImportError:
+    from typing_extensions import NotRequired  # Python 3.10
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -10,8 +15,10 @@ from langgraph.constants import END
 from langgraph.graph import add_messages, StateGraph
 from pydantic import BaseModel
 
+SCHEMA = TypeVar("SCHEMA", bound=BaseModel)
 
-class ChatAgent[SCHEMA: BaseModel]:
+
+class ChatAgent(Generic[SCHEMA]):
     def __init__(self, model: BaseChatModel, schema: Type[SCHEMA], initial_prompt: str):
         class State(TypedDict):
             messages: Annotated[list, add_messages]
