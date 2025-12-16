@@ -19,7 +19,18 @@ SCHEMA = TypeVar("SCHEMA", bound=BaseModel)
 
 
 class LangGraphAgent(Generic[SCHEMA]):
+    """
+    LangGraphAgent is a wrapper around a single-node LangGraph agent that supports tools
+    and structured outputs.
+    """
+
     def __init__(self, model: BaseChatModel, schema: Type[SCHEMA], initial_prompt: str):
+        """
+        :param model: The language model used for invoking and generating responses.
+        :param schema: The schema type that defines the structured output for the model.
+        :param initial_prompt: The initial prompt used when processing new threads.
+        """
+
         class State(TypedDict):
             messages: Annotated[list, add_messages]
             structured_response: NotRequired[SCHEMA]
@@ -44,6 +55,14 @@ class LangGraphAgent(Generic[SCHEMA]):
         self.graph = graph_builder.compile(checkpointer=MemorySaver())
 
     def __call__(self, thread_id: str, content: str) -> tuple[str, SCHEMA]:
+        """
+        Call the model with the given thread ID and content.
+
+        :param thread_id: Identifier for the conversational thread.
+        :param content: Message content provided by the human user.
+        :return: A tuple containing the textual response and a structured response object.
+        """
+
         def is_new_thread() -> bool:
             state = self.graph.checkpointer.get(config)
             return state is None or not state.get("channel_values", {}).get("messages")
