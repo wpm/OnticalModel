@@ -8,15 +8,16 @@ services:
       - "11434:11434"  # Ollama API
     volumes:
       - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  ray-ontical-base:
+  ray-server:
     build:
       context: ../../../
       dockerfile: test/fixtures/ontical-test-llm/Dockerfile.ray-ontical
-    image: ray-ontical:latest
-    command: ["true"]  # No-op command, image used as base only
-
-  ray-server:
     image: ray-ontical:latest
     container_name: ray-server
     ports:
@@ -38,8 +39,6 @@ services:
       - RAY_PROMETHEUS_HOST=http://prometheus:9090
       - PYTHONPATH=/workspace
     depends_on:
-      ray-ontical-base:
-        condition: service_completed_successfully
       llm-server:
         condition: service_started
     healthcheck:
@@ -54,20 +53,16 @@ services:
     volumes:
       - ../../../:/workspace
     working_dir: /workspace
-    command: >
-      bash -c "sleep 10 &&
-               serve run test/fixtures/ontical-test-llm/serve_config.yaml --address ray://ray-server:10001"
+    command: serve run test/fixtures/ontical-test-llm/serve_config.yaml --address ray://ray-server:10001
     environment:
       - RAY_ADDRESS=ray://ray-server:10001
       - RAY_LOG_LEVEL=WARNING
       - PYTHONPATH=/workspace
     depends_on:
-      ray-ontical-base:
-        condition: service_completed_successfully
       ray-server:
         condition: service_healthy
       llm-server:
-        condition: service_started
+        condition: service_healthy
 
   prometheus:
     image: prom/prometheus:latest
