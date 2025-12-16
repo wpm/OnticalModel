@@ -5,7 +5,7 @@ Language model services for Ontical entities, hosted using Ray Serve.
 ## Installation
 
 ```bash
-pip install -e .
+uv pip install -e .
 ```
 
 ## Running the Service
@@ -21,14 +21,13 @@ serve run serve_config.yaml
 Install test dependencies:
 
 ```bash
-pip install -r test-requirements.txt
+uv pip install -r test-requirements.txt
 ```
 
-Start the test environment:
+Start the test environment with Docker Compose:
 
 ```bash
-cd test/fixtures/ontical-test-llm
-docker-compose up -d
+docker-compose -f test/fixtures/ontical-test-llm/docker-compose.yml up -d
 ```
 
 Run tests:
