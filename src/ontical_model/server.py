@@ -1,11 +1,11 @@
-from typing import Type, Generic, TypeVar, Any
+from typing import Type, Generic, TypeVar
 
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, SecretStr, Field
 from ray import serve
 from starlette.requests import Request
 
-from ontical_model.chat_agent import ChatAgent
+from ontical_model.langgraph_agent import LangGraphAgent
 
 SCHEMA = TypeVar("SCHEMA", bound=BaseModel)
 
@@ -51,7 +51,7 @@ class OnticalModelServer(Generic[SCHEMA]):
         max_tokens: int = 150,
     ):
         """
-        Create a Ray deployment of a ChatAgent.
+        Create a Ray deployment of a LangGraphAgent.
 
         :param model_name: The name of the LLM model to use
         :param base_url: The base URL for the OpenAI-compatible API
@@ -68,7 +68,7 @@ class OnticalModelServer(Generic[SCHEMA]):
             temperature=temperature,
             max_tokens=max_tokens,
         )
-        self.model = ChatAgent(llm_model, schema, initial_prompt)
+        self.model = LangGraphAgent(llm_model, schema, initial_prompt)
 
     async def __call__(self, request: Request) -> tuple[str, SCHEMA]:
         """

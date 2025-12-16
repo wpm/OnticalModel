@@ -18,7 +18,7 @@ from pydantic import BaseModel
 SCHEMA = TypeVar("SCHEMA", bound=BaseModel)
 
 
-class ChatAgent(Generic[SCHEMA]):
+class LangGraphAgent(Generic[SCHEMA]):
     def __init__(self, model: BaseChatModel, schema: Type[SCHEMA], initial_prompt: str):
         class State(TypedDict):
             messages: Annotated[list, add_messages]

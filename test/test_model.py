@@ -1,12 +1,14 @@
 import requests
 from langchain_openai import ChatOpenAI
 
-from ontical_model.chat_agent import ChatAgent
+from ontical_model.langgraph_agent import LangGraphAgent
 from ontical_model.test_schemas import Colors
 
 
 def test_opposites_model_answer(chat_model: ChatOpenAI):
-    agent = ChatAgent(chat_model, Colors, "Answer questions accurately and succinctly.")
+    agent = LangGraphAgent(
+        chat_model, Colors, "Answer questions accurately and succinctly."
+    )
     reply, colors = agent("A", "What are the colors in the American flag?")
     assert reply
     assert colors
