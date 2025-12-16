@@ -1,0 +1,12 @@
+applications:
+  - name: ontical-model-server
+    import_path: ontical_model.server:app_builder
+    route_prefix: /
+    args:
+      model_name: "llama3.2:1b"
+      base_url: "http://localhost:11434/v1"
+      api_key: "ollama"
+      schema_class: "your_package.schemas.YourSchema"  # Replace with your schema
+      initial_prompt: "Answer questions accurately and succinctly."
+      temperature: 0.7
+      max_tokens: 150

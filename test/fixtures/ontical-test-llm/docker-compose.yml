@@ -2,15 +2,22 @@ services:
   llm-server:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.llm-server
     container_name: llm-server
     ports:
       - "11434:11434"  # Ollama API
     volumes:
       - ollama_data:/root/.ollama
 
+  ray-ontical-base:
+    build:
+      context: ../../../
+      dockerfile: test/fixtures/ontical-test-llm/Dockerfile.ray-ontical
+    image: ray-ontical:latest
+    command: ["true"]  # No-op command, image used as base only
+
   ray-server:
-    image: rayproject/ray:latest
+    image: ray-ontical:latest
     container_name: ray-server
     ports:
       - "8265:8265"  # Ray dashboard
@@ -22,9 +29,7 @@ services:
       - ../../../:/workspace
     working_dir: /workspace
     command: >
-      bash -c "pip install -e . &&
-               pip install --upgrade 'msgpack>=1.1.1' &&  # Fix conda-libmamba-solver conflict
-               ray start --head --node-ip-address=0.0.0.0 --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 --ray-client-server-port=10001 --metrics-export-port=8081 &&
+      bash -c "ray start --head --node-ip-address=0.0.0.0 --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 --ray-client-server-port=10001 --metrics-export-port=8081 &&
                tail -f /dev/null"
     environment:
       - LLM_HOST=llm-server
@@ -32,12 +37,35 @@ services:
       - RAY_GRAFANA_IFRAME_HOST=http://localhost:3001
       - RAY_PROMETHEUS_HOST=http://prometheus:9090
     depends_on:
-      - llm-server
+      ray-ontical-base:
+        condition: service_completed_successfully
+      llm-server:
+        condition: service_started
     healthcheck:
       test: ["CMD", "ray", "status"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  ontical-model-server:
+    image: ray-ontical:latest
+    container_name: ontical-model-server
+    volumes:
+      - ../../../:/workspace
+    working_dir: /workspace
+    command: >
+      bash -c "sleep 10 &&
+               serve run test/fixtures/ontical-test-llm/serve_config.yaml --address ray://ray-server:10001"
+    environment:
+      - RAY_ADDRESS=ray://ray-server:10001
+      - RAY_LOG_LEVEL=WARNING
+    depends_on:
+      ray-ontical-base:
+        condition: service_completed_successfully
+      ray-server:
+        condition: service_healthy
+      llm-server:
+        condition: service_started
 
   prometheus:
     image: prom/prometheus:latest

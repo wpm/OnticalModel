@@ -1,0 +1,14 @@
+FROM rayproject/ray:latest
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy project files
+COPY . /workspace
+
+# Install OnticalModel package and fix msgpack dependency conflict
+RUN pip install -e . && \
+    pip install --upgrade 'msgpack>=1.1.1'
+
+# Set default command (will be overridden in docker-compose)
+CMD ["bash"]

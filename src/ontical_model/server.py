@@ -1,12 +1,37 @@
-from typing import Type, Generic, TypeVar
+from typing import Type, Generic, TypeVar, Any
 
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, SecretStr, Field
 from ray import serve
+from starlette.requests import Request
 
 from ontical_model.chat_agent import ChatAgent
 
 SCHEMA = TypeVar("SCHEMA", bound=BaseModel)
+
+
+class OnticalModelServerArgs(BaseModel):
+    """
+    Configuration arguments for OnticalModelServer deployment.
+    """
+
+    model_name: str = Field(
+        description="The name of the LLM model to use (e.g., 'llama3.2:1b')"
+    )
+    base_url: str = Field(description="The base URL for the OpenAI-compatible API")
+    api_key: str = Field(
+        default="ollama", description="The API key (can be a dummy value for Ollama)"
+    )
+    schema_class: str = Field(
+        description="Fully qualified name of the Pydantic schema class "
+        "(e.g., 'ontical_model.schemas.Colors')"
+    )
+    initial_prompt: str = Field(
+        default="Answer questions accurately and succinctly.",
+        description="The initial system prompt",
+    )
+    temperature: float = Field(default=0.7, description="The temperature for the model")
+    max_tokens: int = Field(default=150, description="The maximum tokens for responses")
 
 
 @serve.deployment
@@ -45,10 +70,59 @@ class OnticalModelServer(Generic[SCHEMA]):
         )
         self.model = ChatAgent(llm_model, schema, initial_prompt)
 
-    def __call__(self, thread_id: str, content: str) -> tuple[str, SCHEMA]:
+    async def __call__(self, request: Request) -> tuple[str, SCHEMA]:
         """
-        Handle a request from an entity and return a response.
+        Handle an HTTP request and return a response.
+
+        Expects JSON body with [thread_id, content] format.
 
         :return: The LLM's response containing optional speech and/or thought
         """
+        args = await request.json()
+        if not isinstance(args, list) or len(args) != 2:
+            raise ValueError("Expected JSON array with [thread_id, content]")
+        thread_id, content = args
         return self.model(thread_id, content)
+
+
+def app_builder(args: OnticalModelServerArgs) -> serve.Application:
+    """
+    Builder function for OnticalModelServer deployment.
+
+    This function enables the Ray Serve builder pattern, allowing configuration
+    to be passed via CLI arguments or YAML config files without modifying code.
+
+    :param args: Configuration arguments for the deployment
+    :return: A Ray Serve application ready for deployment
+
+    Example usage via CLI:
+        serve run server:app_builder model_name="llama3.2:1b" \\
+            base_url="http://localhost:11434/v1" \\
+            schema_class="ontical_model.schemas.Colors"
+
+    Example usage via YAML config:
+        applications:
+          - name: ontical-model-server
+            import_path: ontical_model.server:app_builder
+            args:
+              model_name: "llama3.2:1b"
+              base_url: "http://localhost:11434/v1"
+              schema_class: "ontical_model.schemas.Colors"
+    """
+    # Dynamically import the schema class
+    module_name, class_name = args.schema_class.rsplit(".", 1)
+    import importlib
+
+    module = importlib.import_module(module_name)
+    schema_class: Type[BaseModel] = getattr(module, class_name)
+
+    # Bind the deployment with configuration from args
+    return OnticalModelServer.bind(
+        model_name=args.model_name,
+        base_url=args.base_url,
+        api_key=args.api_key,
+        schema=schema_class,
+        initial_prompt=args.initial_prompt,
+        temperature=args.temperature,
+        max_tokens=args.max_tokens,
+    )
