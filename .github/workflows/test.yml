@@ -7,7 +7,70 @@ on:
     branches: [develop, main]
 
 jobs:
-  test:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.11"
+
+      - name: Install dependencies
+        run: |
+          uv sync --dev
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull LLM server image
+        working-directory: test/fixtures/ontical-test-llm
+        run: docker compose pull llm-server
+
+      - name: Start LLM server
+        working-directory: test/fixtures/ontical-test-llm
+        run: |
+          docker compose up -d llm-server
+          echo "Waiting for LLM server to be healthy..."
+          timeout 180 bash -c 'until docker compose ps llm-server | grep -q "healthy"; do sleep 5; done'
+          echo "LLM server is ready!"
+
+      - name: Run unit tests
+        run: |
+          uv run pytest test/unit/ --cov=ontical_model --cov-config=.coveragerc --cov-report=xml --cov-report=term
+
+      - name: Upload unit test coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        continue-on-error: true
+        with:
+          file: ./coverage.xml
+          flags: unit
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Tear down LLM server
+        if: always()
+        working-directory: test/fixtures/ontical-test-llm
+        run: |
+          docker compose down -v
+
+  integration-tests:
+    name: Integration Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -55,9 +118,9 @@ jobs:
           timeout 60 bash -c 'until curl -sf http://localhost:8000/ > /dev/null 2>&1 || [ $? -eq 22 ]; do echo "Waiting for Ray Serve..."; sleep 2; done'
           echo "Ray Serve is ready!"
 
-      - name: Run tests
+      - name: Run integration tests
         run: |
-          uv run pytest
+          uv run pytest test/integration/ --cov=ontical_model --cov-config=.coveragerc --cov-report=xml --cov-report=term
 
       - name: Stop ontical-model-server to flush coverage
         working-directory: test/fixtures/ontical-test-llm
@@ -70,12 +133,13 @@ jobs:
           uv run coverage xml
           uv run coverage report
 
-      - name: Upload coverage reports
+      - name: Upload integration test coverage
         uses: codecov/codecov-action@v4
         if: always()
         continue-on-error: true
         with:
           file: ./coverage.xml
+          flags: integration
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
