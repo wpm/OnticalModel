@@ -176,7 +176,8 @@ jobs:
 
       - name: Install Claude Code
         run: |
-          npm install -g @anthropic-ai/claude-code
+          curl -fsSL https://raw.githubusercontent.com/anthropics/claude-code/main/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Run code review
         env:
@@ -185,7 +186,7 @@ jobs:
           git diff origin/${{ github.base_ref }}...HEAD > changes.diff
           if [ -s changes.diff ]; then
             echo "Reviewing changes..."
-            claude-code review changes.diff --output review.md
+            claude --non-interactive "Review this code change and provide feedback on potential issues, improvements, and best practices. Focus on correctness, performance, security, and maintainability." < changes.diff > review.md
           else
             echo "No changes to review"
             exit 0
