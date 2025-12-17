@@ -29,61 +29,16 @@ jobs:
         run: |
           uv sync --dev
 
-      - name: Free up disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force
-          df -h
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Cache Docker layers for llm-server
-        uses: actions/cache@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          path: /tmp/.buildx-cache-llm
-          key: ${{ runner.os }}-buildx-llm-${{ hashFiles('test/fixtures/ontical-test-llm/Dockerfile.llm-server', 'test/fixtures/ontical-test-llm/start-ollama.sh') }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-llm-
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Cache Docker layers for ray-ontical
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache-ray
-          key: ${{ runner.os }}-buildx-ray-${{ hashFiles('pyproject.toml', 'uv.lock', 'test/fixtures/ontical-test-llm/Dockerfile.ray-ontical') }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-ray-
-
-      - name: Build Docker images with cache
+      - name: Pull Docker images
         working-directory: test/fixtures/ontical-test-llm
-        run: |
-          # Build llm-server with cache
-          docker buildx build \
-            --file Dockerfile.llm-server \
-            --cache-from type=local,src=/tmp/.buildx-cache-llm \
-            --cache-to type=local,dest=/tmp/.buildx-cache-llm-new,mode=max \
-            --tag llm-server:latest \
-            --load \
-            .
-
-          # Build ray-ontical with cache
-          docker buildx build \
-            --file Dockerfile.ray-ontical \
-            --cache-from type=local,src=/tmp/.buildx-cache-ray \
-            --cache-to type=local,dest=/tmp/.buildx-cache-ray-new,mode=max \
-            --tag ray-ontical:latest \
-            --load \
-            ../../../
-
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache-llm
-          rm -rf /tmp/.buildx-cache-ray
-          mv /tmp/.buildx-cache-llm-new /tmp/.buildx-cache-llm || true
-          mv /tmp/.buildx-cache-ray-new /tmp/.buildx-cache-ray || true
+        run: docker compose pull
 
       - name: Create coverage data directory
         run: |

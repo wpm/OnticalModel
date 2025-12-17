@@ -1,5 +1,6 @@
 services:
   llm-server:
+    image: ghcr.io/wpm/onticalmodel/llm-server:latest
     build:
       context: .
       dockerfile: Dockerfile.llm-server
@@ -15,10 +16,10 @@ services:
       retries: 5
 
   ray-server:
+    image: ghcr.io/wpm/onticalmodel/ray-ontical:latest
     build:
       context: ../../../
       dockerfile: test/fixtures/ontical-test-llm/Dockerfile.ray-ontical
-    image: ray-ontical:latest
     container_name: ray-server
     ports:
       - "8265:8265"  # Ray dashboard
@@ -49,7 +50,7 @@ services:
       retries: 5
 
   ontical-model-server:
-    image: ray-ontical:latest
+    image: ghcr.io/wpm/onticalmodel/ray-ontical:latest
     container_name: ontical-model-server
     volumes:
       - ../../../:/workspace
