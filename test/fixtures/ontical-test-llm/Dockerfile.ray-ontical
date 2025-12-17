@@ -6,9 +6,10 @@ WORKDIR /workspace
 # Copy project files
 COPY . /workspace
 
-# Install OnticalModel package and fix msgpack dependency conflict
+# Install OnticalModel package, coverage, and fix msgpack dependency conflict
 RUN pip install -e . && \
-    pip install --upgrade 'msgpack>=1.1.1'
+    pip install --upgrade 'msgpack>=1.1.1' && \
+    pip install 'coverage[toml]>=7.0.0'
 
 # Add workspace to PYTHONPATH so test module is importable
 ENV PYTHONPATH=/workspace:$PYTHONPATH

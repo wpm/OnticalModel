@@ -53,11 +53,13 @@ services:
     volumes:
       - ../../../:/workspace
     working_dir: /workspace
-    command: serve run test/fixtures/ontical-test-llm/serve_config.yaml --address ray://ray-server:10001
+    command: >
+      bash -c "coverage run --rcfile=/workspace/.coveragerc -m ray.serve.scripts.serve run test/fixtures/ontical-test-llm/serve_config.yaml --address ray://ray-server:10001"
     environment:
       - RAY_ADDRESS=ray://ray-server:10001
       - RAY_LOG_LEVEL=WARNING
       - PYTHONPATH=/workspace
+      - COVERAGE_PROCESS_START=/workspace/.coveragerc
     depends_on:
       ray-server:
         condition: service_healthy

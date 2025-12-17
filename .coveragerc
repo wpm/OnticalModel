@@ -1,0 +1,8 @@
+[run]
+source = ontical_model
+parallel = true
+data_file = /workspace/.coverage-data/.coverage
+
+[report]
+precision = 2
+show_missing = true

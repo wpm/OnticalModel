@@ -43,10 +43,22 @@ Wait for all services to be healthy (check with `docker compose -f test/fixtures
 uv run pytest
 ```
 
-Run tests with coverage:
+To collect coverage from the integration tests:
 
 ```bash
-uv run pytest --cov=ontical_model --cov-report=term-missing
+# Create coverage data directory
+mkdir -p .coverage-data
+
+# Run tests
+uv run pytest
+
+# Stop the server to flush coverage data
+docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml stop ontical-model-server
+
+# Combine and view coverage
+uv run coverage combine .coverage-data/
+uv run coverage report
+uv run coverage html  # Generate HTML report in htmlcov/
 ```
 
 Stop the test environment:
@@ -61,4 +73,4 @@ docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml down
 
 GitHub Actions automatically runs the test suite on every push and pull request. The CI environment uses the exact same Docker Compose setup as local development, ensuring consistency between local and CI testing.
 
-Coverage reports are automatically uploaded to [Codecov](https://codecov.io) for tracking test coverage over time.
+Coverage reports are automatically uploaded to [Codecov](https://codecov.io) for tracking test coverage over time. Coverage is collected from integration tests by instrumenting the Ray Serve deployment running in Docker containers.

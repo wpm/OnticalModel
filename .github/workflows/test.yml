@@ -95,9 +95,24 @@ jobs:
           timeout 60 bash -c 'until curl -sf http://localhost:8000/ > /dev/null 2>&1 || [ $? -eq 22 ]; do echo "Waiting for Ray Serve..."; sleep 2; done'
           echo "Ray Serve is ready!"
 
+      - name: Create coverage data directory
+        run: |
+          mkdir -p .coverage-data
+
       - name: Run tests
         run: |
-          uv run pytest --cov=ontical_model --cov-report=xml --cov-report=term
+          uv run pytest
+
+      - name: Stop ontical-model-server to flush coverage
+        working-directory: test/fixtures/ontical-test-llm
+        run: |
+          docker compose stop ontical-model-server
+
+      - name: Combine coverage data
+        run: |
+          uv run coverage combine .coverage-data/
+          uv run coverage xml
+          uv run coverage report
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
