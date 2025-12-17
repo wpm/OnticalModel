@@ -165,11 +165,17 @@ jobs:
   code-review:
     name: Code Review
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      github.event.pull_request.user.login != 'github-actions[bot]'
     timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: write
+    concurrency:
+      group: code-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout code
