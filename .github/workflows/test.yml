@@ -85,6 +85,11 @@ jobs:
           mv /tmp/.buildx-cache-llm-new /tmp/.buildx-cache-llm || true
           mv /tmp/.buildx-cache-ray-new /tmp/.buildx-cache-ray || true
 
+      - name: Create coverage data directory
+        run: |
+          mkdir -p .coverage-data
+          chmod 777 .coverage-data
+
       - name: Start Docker Compose services
         working-directory: test/fixtures/ontical-test-llm
         run: |
@@ -94,11 +99,6 @@ jobs:
           echo "Waiting for Ray Serve deployment to be ready..."
           timeout 60 bash -c 'until curl -sf http://localhost:8000/ > /dev/null 2>&1 || [ $? -eq 22 ]; do echo "Waiting for Ray Serve..."; sleep 2; done'
           echo "Ray Serve is ready!"
-
-      - name: Create coverage data directory
-        run: |
-          mkdir -p .coverage-data
-          chmod 777 .coverage-data
 
       - name: Run tests
         run: |
