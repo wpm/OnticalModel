@@ -22,6 +22,30 @@ Install the package with development dependencies:
 uv sync --dev
 ```
 
+### Docker Images
+
+The test environment uses pre-built Docker images hosted on GitHub Container Registry for faster startup. Images are automatically rebuilt when dependencies or Dockerfiles change.
+
+**To use pre-built images** (default):
+```bash
+docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml pull
+```
+
+**To build images locally** (for development):
+```bash
+docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml build
+```
+
+**To manually trigger image rebuild in CI**:
+```bash
+gh workflow run build-images.yml
+```
+
+Images are automatically rebuilt when any of these files change:
+- `pyproject.toml` or `uv.lock` (Python dependencies)
+- `test/fixtures/ontical-test-llm/Dockerfile.*`
+- `test/fixtures/ontical-test-llm/start-ollama.sh`
+
 ### Running Tests Locally
 
 Start the test environment with Docker Compose:
