@@ -177,51 +177,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run code review
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          git diff origin/${{ github.base_ref }}...HEAD > changes.diff
-          if [ -s changes.diff ]; then
-            echo "Reviewing changes..."
-
-            # Create API request payload
-            cat > request.json <<'EOF'
-          {
-            "model": "claude-sonnet-4-20250514",
-            "max_tokens": 4096,
-            "messages": [{
-              "role": "user",
-              "content": "Review this code change and provide feedback on potential issues, improvements, and best practices. Focus on correctness, performance, security, and maintainability.\n\n"
-            }]
-          }
-          EOF
-
-            # Append diff to the content field
-            jq --rawfile diff changes.diff '.messages[0].content += $diff' request.json > request_with_diff.json
-
-            # Call Anthropic API
-            curl -s https://api.anthropic.com/v1/messages \
-              -H "content-type: application/json" \
-              -H "x-api-key: $ANTHROPIC_API_KEY" \
-              -H "anthropic-version: 2023-06-01" \
-              -d @request_with_diff.json | jq -r '.content[0].text' > review.md
-          else
-            echo "No changes to review"
-            exit 0
-          fi
-
-      - name: Post review as comment
-        if: always() && hashFiles('review.md') != ''
-        uses: actions/github-script@v7
+      - name: Run Claude Code Review
+        uses: anthropics/claude-code-action@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const review = fs.readFileSync('review.md', 'utf8');
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `## 🤖 Automated Code Review\n\n${review}`
-            });
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
