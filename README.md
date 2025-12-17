@@ -55,11 +55,16 @@ uv run pytest
 # Stop the server to flush coverage data
 docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml stop ontical-model-server
 
+# On macOS, copy coverage files from container (Docker volume sync issue)
+docker cp ray-server:/workspace/.coverage-data/. .coverage-data/
+
 # Combine and view coverage
 uv run coverage combine .coverage-data/
 uv run coverage report
 uv run coverage html  # Generate HTML report in htmlcov/
 ```
+
+**Coverage Limitations**: Due to how Ray Serve initializes actor replicas, coverage instrumentation captures module-level code (imports, class/function definitions) but not the runtime execution inside Ray actor methods. This means coverage reports show which modules are loaded and which classes are defined, but not the actual execution of `__init__` and `__call__` methods in the Ray Serve deployment. This is a known limitation when testing Ray applications.
 
 Stop the test environment:
 
