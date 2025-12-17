@@ -167,6 +167,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
 
     steps:
       - name: Checkout code
@@ -177,12 +180,12 @@ jobs:
       - name: Install Claude Code
         run: |
           curl -fsSL https://raw.githubusercontent.com/anthropics/claude-code/main/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Run code review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
+          export PATH="$HOME/.local/bin:$PATH"
           git diff origin/${{ github.base_ref }}...HEAD > changes.diff
           if [ -s changes.diff ]; then
             echo "Reviewing changes..."
