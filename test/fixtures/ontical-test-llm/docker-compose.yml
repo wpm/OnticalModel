@@ -54,7 +54,7 @@ services:
       - ../../../:/workspace
     working_dir: /workspace
     command: >
-      bash -c "coverage run --rcfile=/workspace/.coveragerc -m ray.serve.scripts.serve run test/fixtures/ontical-test-llm/serve_config.yaml --address ray://ray-server:10001"
+      bash -c "coverage run --rcfile=/workspace/.coveragerc $(which serve) run test/fixtures/ontical-test-llm/serve_config.yaml --address ray://ray-server:10001"
     environment:
       - RAY_ADDRESS=ray://ray-server:10001
       - RAY_LOG_LEVEL=WARNING
