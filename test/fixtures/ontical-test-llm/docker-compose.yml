@@ -39,7 +39,6 @@ services:
       - RAY_GRAFANA_IFRAME_HOST=http://localhost:3001
       - RAY_PROMETHEUS_HOST=http://prometheus:9090
       - PYTHONPATH=/workspace
-      - COVERAGE_PROCESS_START=/workspace/.coveragerc
     depends_on:
       llm-server:
         condition: service_started
