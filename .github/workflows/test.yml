@@ -1,0 +1,128 @@
+name: Test
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.11"
+
+      - name: Install dependencies
+        run: |
+          uv sync --dev
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          df -h
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers for llm-server
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache-llm
+          key: ${{ runner.os }}-buildx-llm-${{ hashFiles('test/fixtures/ontical-test-llm/Dockerfile.llm-server', 'test/fixtures/ontical-test-llm/start-ollama.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-llm-
+
+      - name: Cache Docker layers for ray-ontical
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache-ray
+          key: ${{ runner.os }}-buildx-ray-${{ hashFiles('pyproject.toml', 'uv.lock', 'test/fixtures/ontical-test-llm/Dockerfile.ray-ontical') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-ray-
+
+      - name: Build Docker images with cache
+        working-directory: test/fixtures/ontical-test-llm
+        run: |
+          # Build llm-server with cache
+          docker buildx build \
+            --file Dockerfile.llm-server \
+            --cache-from type=local,src=/tmp/.buildx-cache-llm \
+            --cache-to type=local,dest=/tmp/.buildx-cache-llm-new,mode=max \
+            --tag llm-server:latest \
+            --load \
+            .
+
+          # Build ray-ontical with cache
+          docker buildx build \
+            --file Dockerfile.ray-ontical \
+            --cache-from type=local,src=/tmp/.buildx-cache-ray \
+            --cache-to type=local,dest=/tmp/.buildx-cache-ray-new,mode=max \
+            --tag ray-ontical:latest \
+            --load \
+            ../../../
+
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache-llm
+          rm -rf /tmp/.buildx-cache-ray
+          mv /tmp/.buildx-cache-llm-new /tmp/.buildx-cache-llm || true
+          mv /tmp/.buildx-cache-ray-new /tmp/.buildx-cache-ray || true
+
+      - name: Start Docker Compose services
+        working-directory: test/fixtures/ontical-test-llm
+        run: |
+          docker compose up -d
+          echo "Waiting for services to be healthy..."
+          timeout 300 bash -c 'until docker compose ps | grep -q "healthy"; do sleep 5; done'
+          echo "Waiting for Ray Serve deployment to be ready..."
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/ > /dev/null 2>&1 || [ $? -eq 22 ]; do echo "Waiting for Ray Serve..."; sleep 2; done'
+          echo "Ray Serve is ready!"
+
+      - name: Run tests
+        run: |
+          uv run pytest --cov=ontical_model --cov-report=xml --cov-report=term
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        if: always()
+        continue-on-error: true
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Collect Docker logs on failure
+        if: failure()
+        working-directory: test/fixtures/ontical-test-llm
+        run: |
+          docker compose logs > ${{ github.workspace }}/docker-logs.txt
+
+      - name: Upload Docker logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-logs
+          path: docker-logs.txt
+
+      - name: Tear down Docker Compose
+        if: always()
+        working-directory: test/fixtures/ontical-test-llm
+        run: |
+          docker compose down -v

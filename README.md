@@ -8,30 +8,57 @@ Language model services for Ontical entities, hosted using Ray Serve.
 uv pip install -e .
 ```
 
-## Running the Service
-
-Start the model server using the provided configuration:
-
-```bash
-serve run serve_config.yaml
-```
+**Note:** This package is designed to be deployed as part of a larger Ray Serve application. It does not include a standalone server configuration.
 
 ## Development
 
-Install test dependencies:
+This package is designed to be deployed as part of a larger application. For local testing and development, use the Docker Compose test environment.
+
+### Setup
+
+Install the package with development dependencies:
 
 ```bash
-uv pip install -r test-requirements.txt
+uv sync --dev
 ```
+
+### Running Tests Locally
 
 Start the test environment with Docker Compose:
 
 ```bash
-docker-compose -f test/fixtures/ontical-test-llm/docker-compose.yml up -d
+docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml up -d
 ```
 
-Run tests:
+The Docker environment includes:
+- **llm-server**: Ollama server with llama3.2:1b model
+- **ray-server**: Ray cluster head node
+- **ontical-model-server**: Ray Serve deployment of OnticalModelServer
+- **prometheus**: Metrics collection
+- **grafana**: Metrics visualization (available at http://localhost:3001)
+
+Wait for all services to be healthy (check with `docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml ps`), then run tests:
 
 ```bash
-pytest
+uv run pytest
 ```
+
+Run tests with coverage:
+
+```bash
+uv run pytest --cov=ontical_model --cov-report=term-missing
+```
+
+Stop the test environment:
+
+```bash
+docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml down
+```
+
+### Continuous Integration
+
+[![Test](https://github.com/wpm/OnticalModel/actions/workflows/test.yml/badge.svg)](https://github.com/wpm/OnticalModel/actions/workflows/test.yml)
+
+GitHub Actions automatically runs the test suite on every push and pull request. The CI environment uses the exact same Docker Compose setup as local development, ensuring consistency between local and CI testing.
+
+Coverage reports are automatically uploaded to [Codecov](https://codecov.io) for tracking test coverage over time.
