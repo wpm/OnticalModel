@@ -177,19 +177,35 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Claude Code
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/anthropics/claude-code/main/install.sh | sh
-
       - name: Run code review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
           git diff origin/${{ github.base_ref }}...HEAD > changes.diff
           if [ -s changes.diff ]; then
             echo "Reviewing changes..."
-            claude --non-interactive "Review this code change and provide feedback on potential issues, improvements, and best practices. Focus on correctness, performance, security, and maintainability." < changes.diff > review.md
+
+            # Create API request payload
+            cat > request.json <<'EOF'
+          {
+            "model": "claude-sonnet-4-20250514",
+            "max_tokens": 4096,
+            "messages": [{
+              "role": "user",
+              "content": "Review this code change and provide feedback on potential issues, improvements, and best practices. Focus on correctness, performance, security, and maintainability.\n\n"
+            }]
+          }
+          EOF
+
+            # Append diff to the content field
+            jq --rawfile diff changes.diff '.messages[0].content += $diff' request.json > request_with_diff.json
+
+            # Call Anthropic API
+            curl -s https://api.anthropic.com/v1/messages \
+              -H "content-type: application/json" \
+              -H "x-api-key: $ANTHROPIC_API_KEY" \
+              -H "anthropic-version: 2023-06-01" \
+              -d @request_with_diff.json | jq -r '.content[0].text' > review.md
           else
             echo "No changes to review"
             exit 0
