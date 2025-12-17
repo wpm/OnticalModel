@@ -85,6 +85,11 @@ jobs:
           mv /tmp/.buildx-cache-llm-new /tmp/.buildx-cache-llm || true
           mv /tmp/.buildx-cache-ray-new /tmp/.buildx-cache-ray || true
 
+      - name: Create coverage data directory
+        run: |
+          mkdir -p .coverage-data
+          chmod 777 .coverage-data
+
       - name: Start Docker Compose services
         working-directory: test/fixtures/ontical-test-llm
         run: |
@@ -97,7 +102,18 @@ jobs:
 
       - name: Run tests
         run: |
-          uv run pytest --cov=ontical_model --cov-report=xml --cov-report=term
+          uv run pytest
+
+      - name: Stop ontical-model-server to flush coverage
+        working-directory: test/fixtures/ontical-test-llm
+        run: |
+          docker compose stop ontical-model-server
+
+      - name: Combine coverage data
+        run: |
+          uv run coverage combine .coverage-data/
+          uv run coverage xml
+          uv run coverage report
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4

@@ -1,0 +1,14 @@
+[run]
+source = src/ontical_model
+parallel = true
+data_file = .coverage-data/.coverage
+relative_files = true
+
+[report]
+precision = 2
+show_missing = true
+
+[paths]
+source =
+    src/ontical_model/
+    /workspace/src/ontical_model/
