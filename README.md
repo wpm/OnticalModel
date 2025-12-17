@@ -1,4 +1,5 @@
 [![Test](https://github.com/wpm/OnticalModel/actions/workflows/test.yml/badge.svg)](https://github.com/wpm/OnticalModel/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/wpm/OnticalModel/branch/develop/graph/badge.svg)](https://codecov.io/gh/wpm/OnticalModel)
 
 # Ontical Model
 
@@ -6,51 +7,75 @@ Language model services for Ontical entities, hosted using Ray Serve.
 
 ## Installation
 
+Install the package:
+
 ```bash
 uv pip install -e .
 ```
 
-**Note:** This package is designed to be deployed as part of a larger Ray Serve application. It does not include a standalone server configuration.
-
-## Development
-
-This package is designed to be deployed as part of a larger application. For local testing and development, use the Docker Compose test environment.
-
-### Setup
-
-Install the package with development dependencies:
+For development, install with dev dependencies:
 
 ```bash
 uv sync --dev
 ```
 
-### Docker Images
+## Testing
 
-The test environment uses pre-built Docker images hosted on GitHub Container Registry for faster startup. Images are automatically rebuilt when dependencies or Dockerfiles change.
+The project uses a two-tier testing strategy: fast unit tests for development and comprehensive integration tests for
+CI/CD verification.
 
-**To use pre-built images** (default):
+**Continuous Integration:** GitHub Actions automatically runs both unit and integration tests on every push and pull
+request.
+Pre-built Docker images are pulled from GitHub Container Registry to speed up CI runs.
+Coverage reports are uploaded to [Codecov](https://codecov.io) for tracking over time.
+
+### Unit Testing
+
+Unit tests run quickly without external dependencies, providing high code coverage through mocking.
+
+```bash
+# Run unit tests only
+uv run pytest test/unit/
+
+# Run with coverage report
+uv run pytest test/unit/ --cov=ontical_model --cov-config=.coveragerc --cov-report=term-missing
+
+# Generate HTML coverage report
+uv run coverage html  # Opens in htmlcov/index.html
+```
+
+### Integration Testing
+
+Integration tests verify the full Ray Serve deployment running in Docker containers.
+
+#### Docker Images
+
+The integration test environment uses pre-built Docker images hosted on GitHub Container Registry for faster startup.
+Images are automatically rebuilt when dependencies or Dockerfiles change.
+
+**Pull pre-built images** (default):
 ```bash
 docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml pull
 ```
 
-**To build images locally** (for development):
+**Build images locally** (for development):
 ```bash
 docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml build
 ```
 
-**To manually trigger image rebuild in CI**:
+**Manually trigger image rebuild in CI**:
 ```bash
 gh workflow run build-images.yml
 ```
 
-Images are automatically rebuilt when any of these files change:
+Images are automatically rebuilt when these files change:
 - `pyproject.toml` or `uv.lock` (Python dependencies)
 - `test/fixtures/ontical-test-llm/Dockerfile.*`
 - `test/fixtures/ontical-test-llm/start-ollama.sh`
 
-### Running Tests Locally
+#### Running Integration Tests
 
-Start the test environment with Docker Compose:
+Start the Docker environment:
 
 ```bash
 docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml up -d
@@ -63,41 +88,19 @@ The Docker environment includes:
 - **prometheus**: Metrics collection
 - **grafana**: Metrics visualization (available at http://localhost:3001)
 
-Wait for all services to be healthy (check with `docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml ps`), then run tests:
+Wait for all services to be healthy (check with `docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml ps`), 
+then run tests:
 
 ```bash
-uv run pytest
+# Run integration tests only (~7 seconds)
+uv run pytest test/integration/
+
+# Run all tests (unit + integration, ~10 seconds)
+uv run pytest test/
 ```
 
-To collect coverage from the integration tests:
-
-```bash
-# Create coverage data directory
-mkdir -p .coverage-data
-
-# Run tests
-uv run pytest
-
-# Stop the server to flush coverage data
-docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml stop ontical-model-server
-
-# On macOS, copy coverage files from container (Docker volume sync issue)
-docker cp ray-server:/workspace/.coverage-data/. .coverage-data/
-
-# Combine and view coverage
-uv run coverage combine .coverage-data/
-uv run coverage report
-uv run coverage html  # Generate HTML report in htmlcov/
-```
-
-**Coverage Limitations**: Due to how Ray Serve initializes actor replicas, coverage instrumentation captures module-level code (imports, class/function definitions) but not the runtime execution inside Ray actor methods. This means coverage reports show which modules are loaded and which classes are defined, but not the actual execution of `__init__` and `__call__` methods in the Ray Serve deployment. This is a known limitation when testing Ray applications.
-
-Stop the test environment:
+Stop the Docker environment when done:
 
 ```bash
 docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml down
 ```
-
-### Code Coverage
-
-Coverage reports are automatically uploaded to [Codecov](https://codecov.io) for tracking test coverage over time. Coverage is collected from integration tests by instrumenting the Ray Serve deployment running in Docker containers.
