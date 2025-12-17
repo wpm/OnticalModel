@@ -1,3 +1,5 @@
+[![Test](https://github.com/wpm/OnticalModel/actions/workflows/test.yml/badge.svg)](https://github.com/wpm/OnticalModel/actions/workflows/test.yml)
+
 # Ontical Model
 
 Language model services for Ontical entities, hosted using Ray Serve.
@@ -96,10 +98,6 @@ Stop the test environment:
 docker compose -f test/fixtures/ontical-test-llm/docker-compose.yml down
 ```
 
-### Continuous Integration
-
-[![Test](https://github.com/wpm/OnticalModel/actions/workflows/test.yml/badge.svg)](https://github.com/wpm/OnticalModel/actions/workflows/test.yml)
-
-GitHub Actions automatically runs the test suite on every push and pull request. The CI environment uses the exact same Docker Compose setup as local development, ensuring consistency between local and CI testing.
+### Code Coverage
 
 Coverage reports are automatically uploaded to [Codecov](https://codecov.io) for tracking test coverage over time. Coverage is collected from integration tests by instrumenting the Ray Serve deployment running in Docker containers.
