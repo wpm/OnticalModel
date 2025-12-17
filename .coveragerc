@@ -1,8 +1,14 @@
 [run]
 source = ontical_model
 parallel = true
-data_file = /workspace/.coverage-data/.coverage
+data_file = .coverage-data/.coverage
+relative_files = true
 
 [report]
 precision = 2
 show_missing = true
+
+[paths]
+source =
+    ontical_model/
+    /workspace/ontical_model/
