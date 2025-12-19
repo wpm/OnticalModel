@@ -1,3 +1,5 @@
+import importlib
+import sys
 from typing import Type, Generic, TypeVar
 
 from langchain_openai import ChatOpenAI
@@ -25,6 +27,11 @@ class OnticalModelServerArgs(BaseModel):
     schema_class: str = Field(
         description="Fully qualified name of the Pydantic schema class "
         "(e.g., 'test.schemas.Colors')"
+    )
+    schema_path: str | None = Field(
+        default=None,
+        description="Optional path to directory containing schema module. "
+        "If provided, this path will be added to sys.path before importing schema_class.",
     )
     initial_prompt: str = Field(
         default="Answer questions accurately and succinctly.",
@@ -108,11 +115,14 @@ def app_builder(args: OnticalModelServerArgs) -> serve.Application:
               model_name: "llama3.2:1b"
               base_url: "http://localhost:11434/v1"
               schema_class: "test.schemas.Colors"
+              schema_path: "/path/to/schemas"  # Optional
     """
+    # Add schema_path to sys.path if provided
+    if args.schema_path:
+        sys.path.insert(0, args.schema_path)
+
     # Dynamically import the schema class
     module_name, class_name = args.schema_class.rsplit(".", 1)
-    import importlib
-
     module = importlib.import_module(module_name)
     schema_class: Type[BaseModel] = getattr(module, class_name)
 
