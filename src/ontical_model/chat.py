@@ -9,20 +9,6 @@ from typing import Optional, Annotated
 from pydantic import BaseModel
 
 
-class ChatResponse(BaseModel):
-    """
-    An entity's response to a chat message.
-    This can specify both a reply and changes to an entity's internal state.
-    """
-
-    reply: Annotated[Optional[Reply], "The reply sent to other entities"]
-    system_message: [
-        Optional[str],
-        "An internal system message prompt visible to only this entity",
-    ]
-    stop: Annotated[bool, "Should the entity leave the chat?"]
-
-
 class Reply(BaseModel):
     """
     A chat response sent to other entities.
@@ -33,3 +19,19 @@ class Reply(BaseModel):
         set[str],
         "IDs of the entities to which the response is sent. Empty set to broadcast to all",
     ] = set()
+
+
+class ChatResponse(BaseModel):
+    """
+    An entity's response to a chat message.
+    This can specify both a reply and changes to an entity's internal state.
+    """
+
+    reply: Annotated[
+        Optional[Reply], "The reply sent to other entities. Set to None for no reply."
+    ]
+    system_message: Annotated[
+        Optional[str],
+        "An internal system message prompt visible to only this entity. Set to None for no message.",
+    ]
+    stop: Annotated[bool, "Should the entity leave the chat?"]
