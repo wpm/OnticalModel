@@ -1,4 +1,6 @@
 import sys
+import tempfile
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -7,6 +9,28 @@ from pydantic import BaseModel, ValidationError
 
 from ontical_model.server import OnticalModelServerArgs, OnticalModelServer, app_builder
 from test.schemas import Colors
+
+
+@pytest.fixture
+def custom_schema_dir():
+    """Create a temporary directory with a custom schema for testing."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        schema_path = Path(tmpdir)
+        schema_file = schema_path / "custom_schema.py"
+        schema_file.write_text(
+            '''"""Test schema for schema_path functionality."""
+
+from pydantic import BaseModel
+
+
+class CustomColors(BaseModel):
+    """A custom schema for testing schema_path."""
+
+    primary: str
+    secondary: str
+'''
+        )
+        yield tmpdir
 
 
 def test_ontical_model_server_args_validation():
@@ -227,12 +251,12 @@ def test_ontical_model_server_args_with_schema_path():
         model_name="llama3.2:1b",
         base_url="http://localhost:11434/v1",
         schema_class="custom_schema.CustomColors",
-        schema_path="/tmp/test_schemas",
+        schema_path="/some/path",
     )
-    assert args.schema_path == "/tmp/test_schemas"
+    assert args.schema_path == "/some/path"
 
 
-def test_app_builder_with_schema_path():
+def test_app_builder_with_schema_path(custom_schema_dir: str):
     """Test app_builder successfully imports schema from custom path."""
     # Store original sys.path to restore later
     original_path = sys.path.copy()
@@ -242,7 +266,7 @@ def test_app_builder_with_schema_path():
             model_name="llama3.2:1b",
             base_url="http://localhost:11434/v1",
             schema_class="custom_schema.CustomColors",
-            schema_path="/tmp/test_schemas",
+            schema_path=custom_schema_dir,
         )
         app = app_builder(args)
 
@@ -250,13 +274,16 @@ def test_app_builder_with_schema_path():
         assert app is not None
 
         # Verify schema_path was added to sys.path
-        assert "/tmp/test_schemas" in sys.path
+        assert custom_schema_dir in sys.path
     finally:
         # Restore original sys.path
         sys.path = original_path
+        # Clean up module cache
+        if "custom_schema" in sys.modules:
+            del sys.modules["custom_schema"]
 
 
-def test_app_builder_schema_path_enables_import():
+def test_app_builder_schema_path_enables_import(custom_schema_dir: str):
     """Test that schema_path allows importing modules not in default path."""
     # Store original sys.path to restore later
     original_path = sys.path.copy()
@@ -266,15 +293,15 @@ def test_app_builder_schema_path_enables_import():
         if "custom_schema" in sys.modules:
             del sys.modules["custom_schema"]
 
-        # Remove /tmp/test_schemas from path if it exists
-        sys.path = [p for p in sys.path if p != "/tmp/test_schemas"]
+        # Remove custom_schema_dir from path if it exists
+        sys.path = [p for p in sys.path if p != custom_schema_dir]
 
         # Now use app_builder with schema_path
         args = OnticalModelServerArgs(
             model_name="llama3.2:1b",
             base_url="http://localhost:11434/v1",
             schema_class="custom_schema.CustomColors",
-            schema_path="/tmp/test_schemas",
+            schema_path=custom_schema_dir,
         )
         app = app_builder(args)
 
