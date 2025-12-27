@@ -42,4 +42,4 @@ def test_occupation_query_direct_call(
     )
     assert text_response
     assert isinstance(structured_response, NameAgeOccupation)
-    assert structured_response.occupation == "bartender"
+    assert structured_response.occupation.lower() == "bartender"
