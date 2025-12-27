@@ -1,14 +1,32 @@
+# Dockerfile for the llm-server service in docker-compose.yml
+#
+# This image provides the Ollama LLM server with the llama3.2:1b model for testing.
+# It's built on the official Ollama image and adds:
+#   - curl for Docker healthchecks
+#   - A startup script that pulls the llama3.2:1b model on first run
+#
+# The image is published to ghcr.io/wpm/onticalmodel/llm-server:latest and rebuilt
+# automatically when this file or start-ollama.sh changes.
+#
+# Related files:
+#   - start-ollama.sh: Startup script that initializes Ollama and pulls the model
+#   - docker-compose.yml: llm-server service configuration
+
 FROM ollama/ollama:latest
 
 # Install curl for health checks
+# The healthcheck in docker-compose.yml uses curl to verify Ollama is responding
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Expose the Ollama API port
+# This port is mapped to host port 11434 in docker-compose.yml
 EXPOSE 11434
 
 # Copy and set up startup script
+# start-ollama.sh starts Ollama, waits for it to be ready, and pulls llama3.2:1b
 COPY start-ollama.sh /usr/local/bin/start-ollama.sh
 RUN chmod +x /usr/local/bin/start-ollama.sh
 
+# Clear the default Ollama entrypoint and use our startup script
 ENTRYPOINT []
 CMD ["/usr/local/bin/start-ollama.sh"]

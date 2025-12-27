@@ -1,0 +1,16 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 90%
+        threshold: 5%  # Allow up to 5% decrease
+        informational: false
+    patch:
+      default:
+        target: 90%
+        threshold: 5%  # Allow up to 5% decrease
+        informational: false
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default

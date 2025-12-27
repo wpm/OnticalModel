@@ -1,11 +1,13 @@
 """Common Pydantic schemas for structured output."""
 
-from typing import Annotated
+from typing import Annotated, Optional
 
 from pydantic import BaseModel
 
 
-class Colors(BaseModel):
-    """Schema for extracting colors from text."""
+class NameAgeOccupation(BaseModel):
+    """Schema for extracting name, age, and occupation from conversation."""
 
-    colors: Annotated[set[str], "All the colors mentioned in the reply"]
+    name: Annotated[Optional[str], "The person's name if mentioned"]
+    age: Annotated[Optional[int], "The person's age if mentioned"]
+    occupation: Annotated[Optional[str], "The person's occupation if mentioned"]

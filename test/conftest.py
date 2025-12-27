@@ -1,78 +1,58 @@
+"""
+Shared fixtures for all tests.
+
+This conftest contains only fixtures needed for unit tests that don't
+require external dependencies like Docker containers.
+
+For integration test fixtures, see test/integration/conftest.py
+"""
+
 import os
 from pathlib import Path
 from typing import Any
 
 import pytest
-import yaml
-from langchain_openai import ChatOpenAI
-from pydantic import SecretStr
+from loguru import logger
+
+
+@pytest.fixture(scope="session", autouse=True)
+def configure_logging():
+    """Configure loguru to use DEBUG level for all tests."""
+    logger.remove()  # Remove default handler
+    logger.add(
+        lambda msg: print(msg, end=""),  # Print to stdout
+        level="DEBUG",
+        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+    )
 
 
 @pytest.fixture
 def fixtures() -> Path:
+    """Path to test fixtures directory."""
     return Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture
 def llm_base_url() -> str:
+    """Base URL for the LLM service (used for config generation in unit tests)."""
     llm_host = os.environ.get("LLM_HOST", "localhost")
     # noinspection HttpUrlsUsage
     return f"http://{llm_host}:11434/v1"
 
 
 @pytest.fixture
-def serve_config(fixtures: Path) -> dict[str, Any]:
-    """Read the args section from the serve_config.yaml file."""
-    config_path = fixtures / "ontical-test-llm" / "serve_config.yaml"
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
-    return config["applications"][0]["args"]
-
-
-@pytest.fixture
-def colors_model(llm_base_url: str, serve_config: dict[str, Any]) -> ChatOpenAI:
+def serve_config(llm_base_url: str) -> dict[str, Any]:
     """
-    LangChain ChatOpenAI model configured to use Ollama.
+    Generate serve config for testing OnticalModelServerArgs.
 
-    Ollama provides an OpenAI-compatible API, so we can use ChatOpenAI
-    with a custom base_url pointing to the Ollama server.
+    This is used by unit tests to validate configuration parsing,
+    not for actual LLM communication.
     """
-
-    return ChatOpenAI(
-        model=serve_config["model_name"],
-        base_url=llm_base_url,
-        api_key=SecretStr("ollama"),  # Ollama doesn't require a real API key
-        temperature=serve_config["temperature"],
-        max_tokens=serve_config["max_tokens"],
-    )
-
-
-@pytest.fixture
-def ontical_model_server_url() -> str:
-    """
-    URL for the OnticalModelServer deployed via docker-compose.
-
-    The server is deployed using 'serve run' and is always running
-    when the docker-compose stack is up.
-    """
-    import time
-    import requests
-
-    url = "http://localhost:8000/"
-
-    # Wait for the server to be ready
-    max_retries = 30
-    for i in range(max_retries):
-        try:
-            # Try a simple health check
-            response = requests.get(url, timeout=1)
-            if response.status_code in [200, 404]:  # 404 is ok, means server is up
-                return url
-        except requests.exceptions.RequestException:
-            if i == max_retries - 1:
-                raise RuntimeError(
-                    f"Failed to connect to OnticalModelServer at {url} after {max_retries} attempts"
-                )
-            time.sleep(1)
-
-    return url
+    return {
+        "model_name": "llama3.2:1b",
+        "base_url": llm_base_url,
+        "api_key": "ollama",
+        "schema_class": "test.schemas.NameAgeOccupation",
+        "temperature": 0.7,
+        "max_tokens": 150,
+    }
