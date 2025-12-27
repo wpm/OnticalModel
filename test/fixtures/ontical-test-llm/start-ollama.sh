@@ -18,7 +18,7 @@ for i in {1..60}; do
     echo "Ollama is ready!"
     break
   fi
-  if [ $i -eq 60 ]; then
+  if [ "$i" -eq 60 ]; then
     echo "Timeout waiting for Ollama to start"
     exit 1
   fi
