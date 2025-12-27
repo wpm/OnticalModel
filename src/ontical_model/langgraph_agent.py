@@ -38,6 +38,7 @@ class LangGraphAgent(Generic[SCHEMA]):
 
         class State(TypedDict):
             messages: Annotated[list, add_messages]
+            # noinspection PyTypeHints
             structured_response: NotRequired[SCHEMA]
 
         def llm(state: State) -> dict:
@@ -53,7 +54,9 @@ class LangGraphAgent(Generic[SCHEMA]):
         self.schema = schema
         self.initial_prompt = initial_prompt
         llm_node = "llm"
+        # noinspection PyTypeChecker
         graph_builder = StateGraph(State)
+        # noinspection PyTypeChecker
         graph_builder.add_node(llm_node, llm)
         graph_builder.set_entry_point(llm_node)
         graph_builder.add_edge(llm_node, END)
@@ -82,6 +85,7 @@ class LangGraphAgent(Generic[SCHEMA]):
             messages.append(SystemMessage(content=self.initial_prompt))
         messages.append(HumanMessage(content=content))
         agent_input = {"messages": messages}
+        # noinspection PyTypeChecker
         result = self.graph.invoke(agent_input, config)
         text_response = result["messages"][-1].content
         structured_response = result["structured_response"]
@@ -91,15 +95,10 @@ class LangGraphAgent(Generic[SCHEMA]):
         """
         Clear the checkpoint data for a specific thread.
 
-        This removes all conversation history stored in the MemorySaver for the
+        This removes all conversation history stored in the checkpointer for the
         given thread, freeing up memory. Should be called when a thread is no
         longer needed to prevent memory leaks.
 
         :param thread_id: The thread identifier
         """
-        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
-        # MemorySaver/InMemorySaver stores checkpoints using thread_id as top-level key
-        # Storage structure: storage[thread_id][checkpoint_ns][checkpoint_id]
-        if hasattr(self.graph.checkpointer, "storage"):
-            # Remove the entire thread's checkpoint data
-            self.graph.checkpointer.storage.pop(thread_id, None)
+        self.graph.checkpointer.delete_thread(thread_id)

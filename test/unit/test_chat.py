@@ -23,6 +23,7 @@ def test_reply_broadcast():
 def test_reply_text_required():
     """Test that Reply requires text field."""
     with pytest.raises(ValidationError) as exc_info:
+        # noinspection PyArgumentList
         Reply(recipients={"user1"})
     assert "text" in str(exc_info.value)
 
@@ -68,5 +69,6 @@ def test_chat_response_all_fields():
 def test_chat_response_stop_required():
     """Test that ChatResponse requires stop field."""
     with pytest.raises(ValidationError) as exc_info:
+        # noinspection PyArgumentList
         ChatResponse(reply=None, system_message=None)
     assert "stop" in str(exc_info.value)

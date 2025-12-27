@@ -12,6 +12,17 @@ from ontical_model.server import OnticalModelServerArgs, OnticalModelServer, app
 from test.schemas import NameAgeOccupation
 
 
+# noinspection PyUnresolvedReferences
+def create_ontical_model_server(*args, **kwargs):
+    """
+    Helper function to create OnticalModelServer instance for testing.
+
+    This wrapper suppresses IDE warnings about func_or_class attribute which is
+    added by the @serve.deployment decorator at runtime.
+    """
+    return OnticalModelServer.func_or_class(*args, **kwargs)
+
+
 @pytest.fixture
 def custom_schema_dir():
     """Create a temporary directory with a custom schema for testing."""
@@ -110,7 +121,7 @@ def test_ontical_model_server_init(mock_agent_class: Mock, mock_chat_openai: Moc
     mock_agent_class.return_value = mock_agent
 
     # Access the underlying class from the deployment
-    server = OnticalModelServer.func_or_class(
+    server = create_ontical_model_server(
         model_name="llama3.2:1b",
         base_url="http://localhost:11434/v1",
         api_key="test-key",
@@ -147,7 +158,7 @@ def test_ontical_model_server_init_with_defaults(
     mock_agent_class.return_value = mock_agent
 
     # Access the underlying class from the deployment
-    OnticalModelServer.func_or_class(
+    create_ontical_model_server(
         model_name="llama3.2:1b",
         base_url="http://localhost:11434/v1",
         api_key="test-key",
@@ -176,8 +187,7 @@ async def test_ontical_model_server_call(
     )
     mock_agent_class.return_value = mock_agent
 
-    # Create server instance
-    server = OnticalModelServer.func_or_class(
+    server = create_ontical_model_server(
         model_name="llama3.2:1b",
         base_url="http://localhost:11434/v1",
         api_key="test-key",
@@ -211,8 +221,7 @@ async def test_ontical_model_server_call_invalid_json(
     mock_agent = Mock()
     mock_agent_class.return_value = mock_agent
 
-    # Create server instance
-    server = OnticalModelServer.func_or_class(
+    server = create_ontical_model_server(
         model_name="llama3.2:1b",
         base_url="http://localhost:11434/v1",
         api_key="test-key",
@@ -312,7 +321,7 @@ def test_set_thread_prompt(mock_agent_class: Mock, mock_chat_openai: Mock):
     mock_agent = Mock()
     mock_agent_class.return_value = mock_agent
 
-    server = OnticalModelServer.func_or_class(
+    server = create_ontical_model_server(
         model_name="llama3.2:1b",
         base_url="http://localhost:11434/v1",
         api_key="test-key",
@@ -340,7 +349,7 @@ def test_get_thread_prompt(mock_agent_class: Mock, mock_chat_openai: Mock):
     mock_agent = Mock()
     mock_agent_class.return_value = mock_agent
 
-    server = OnticalModelServer.func_or_class(
+    server = create_ontical_model_server(
         model_name="llama3.2:1b",
         base_url="http://localhost:11434/v1",
         api_key="test-key",
@@ -364,7 +373,7 @@ def test_delete_thread_prompt(mock_agent_class: Mock, mock_chat_openai: Mock):
     mock_agent = Mock()
     mock_agent_class.return_value = mock_agent
 
-    server = OnticalModelServer.func_or_class(
+    server = create_ontical_model_server(
         model_name="llama3.2:1b",
         base_url="http://localhost:11434/v1",
         api_key="test-key",
@@ -392,7 +401,7 @@ def test_list_thread_prompts(mock_agent_class: Mock, mock_chat_openai: Mock):
     mock_agent = Mock()
     mock_agent_class.return_value = mock_agent
 
-    server = OnticalModelServer.func_or_class(
+    server = create_ontical_model_server(
         model_name="llama3.2:1b",
         base_url="http://localhost:11434/v1",
         api_key="test-key",
@@ -430,7 +439,7 @@ async def test_ontical_model_server_call_with_thread_prompt(
     )
     mock_agent_class.return_value = mock_agent
 
-    server = OnticalModelServer.func_or_class(
+    server = create_ontical_model_server(
         model_name="llama3.2:1b",
         base_url="http://localhost:11434/v1",
         api_key="test-key",
@@ -468,7 +477,7 @@ async def test_ontical_model_server_call_without_thread_prompt(
     )
     mock_agent_class.return_value = mock_agent
 
-    server = OnticalModelServer.func_or_class(
+    server = create_ontical_model_server(
         model_name="llama3.2:1b",
         base_url="http://localhost:11434/v1",
         api_key="test-key",
@@ -530,7 +539,7 @@ def test_server_with_redis_url():
         mock_redis_saver.return_value = mock_checkpointer
 
         # Create server with redis_url
-        server = OnticalModelServer.func_or_class(
+        server = create_ontical_model_server(
             model_name="llama3.2:1b",
             base_url="http://localhost:11434/v1",
             api_key="test-key",
@@ -556,7 +565,7 @@ def test_server_with_redis_connection_failure():
 
         # Create server with redis_url (should raise exception)
         with pytest.raises(Exception, match="Connection refused"):
-            OnticalModelServer.func_or_class(
+            create_ontical_model_server(
                 model_name="llama3.2:1b",
                 base_url="http://localhost:11434/v1",
                 api_key="test-key",
@@ -567,7 +576,7 @@ def test_server_with_redis_connection_failure():
 
 def test_server_without_redis_url():
     """Test OnticalModelServer initialization without Redis (uses MemorySaver)."""
-    server = OnticalModelServer.func_or_class(
+    server = create_ontical_model_server(
         model_name="llama3.2:1b",
         base_url="http://localhost:11434/v1",
         api_key="test-key",
@@ -583,7 +592,7 @@ def test_server_without_redis_url():
 
 def test_clear_thread_checkpoint_method():
     """Test OnticalModelServer.clear_thread_checkpoint method."""
-    server = OnticalModelServer.func_or_class(
+    server = create_ontical_model_server(
         model_name="llama3.2:1b",
         base_url="http://localhost:11434/v1",
         api_key="test-key",

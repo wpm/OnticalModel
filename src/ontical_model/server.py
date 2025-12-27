@@ -3,7 +3,6 @@ import sys
 from typing import Type, Generic, TypeVar, Optional, Annotated
 
 from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.redis import RedisSaver
 from pydantic import BaseModel, SecretStr, field_validator
 from ray import serve
@@ -86,7 +85,7 @@ class OnticalModelServer(Generic[SCHEMA]):
         )
 
         # Configure checkpointer based on redis_url
-        checkpointer: Optional[BaseCheckpointSaver] = None
+        checkpointer: Optional[RedisSaver] = None
         if redis_url:
             from loguru import logger as log
 
@@ -202,6 +201,7 @@ def app_builder(args: OnticalModelServerArgs) -> serve.Application:
     schema_class: Type[BaseModel] = getattr(module, class_name)
 
     # Bind the deployment with configuration from args
+    # noinspection PyUnresolvedReferences
     return OnticalModelServer.bind(
         model_name=args.model_name,
         base_url=args.base_url,
