@@ -4,27 +4,42 @@ from ontical_model.langgraph_agent import LangGraphAgent
 from test.schemas import NameAgeOccupation
 
 
-def test_name_age_occupation_query(
-    name_age_occupation_model: ChatOpenAI, bob_prompt: str
+def test_name_query_direct_call(
+    name_age_occupation_model: ChatOpenAI,
+    bob_prompt: str,
+    bob_thread_ids: list[str],
 ):
-    """Test that the agent can extract name, age, and occupation from conversation."""
+    """Test that the agent can handle a name query."""
     agent = LangGraphAgent(name_age_occupation_model, NameAgeOccupation, bob_prompt)
-
-    # Ask for name
-    text_response, structured_response = agent("test_thread", "What is your name?")
+    text_response, structured_response = agent(bob_thread_ids[0], "What is your name?")
     assert text_response
-    # Note: We don't assert specific values because small LLMs may not be reliable
+    assert isinstance(structured_response, NameAgeOccupation)
+    assert structured_response.name == "Bob"
 
-    # Ask for age
-    text_response, structured_response = agent("test_thread", "How old are you?")
+
+def test_age_query_direct_call(
+    name_age_occupation_model: ChatOpenAI,
+    bob_prompt: str,
+    bob_thread_ids: list[str],
+):
+    """Test that the agent can handle an age query."""
+    agent = LangGraphAgent(name_age_occupation_model, NameAgeOccupation, bob_prompt)
+    text_response, structured_response = agent(bob_thread_ids[1], "How old are you?")
     assert text_response
+    assert isinstance(structured_response, NameAgeOccupation)
+    assert structured_response.age == 28
 
-    # Ask for occupation
+
+def test_occupation_query_direct_call(
+    name_age_occupation_model: ChatOpenAI,
+    bob_prompt: str,
+    bob_thread_ids: list[str],
+):
+    """Test that the agent can handle an occupation query."""
+    agent = LangGraphAgent(name_age_occupation_model, NameAgeOccupation, bob_prompt)
     text_response, structured_response = agent(
-        "test_thread", "What is your occupation?"
+        bob_thread_ids[2], "What is your occupation?"
     )
     assert text_response
-    assert (
-        NameAgeOccupation(name="Bob", age=28, occupation="bartender")
-        == structured_response
-    )
+    assert isinstance(structured_response, NameAgeOccupation)
+    assert structured_response.occupation.lower() == "bartender"

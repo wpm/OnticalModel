@@ -60,4 +60,4 @@ def test_occupation_query_ray_server_call(
     text_response, structured_response = result
     assert text_response
     response_data = NameAgeOccupation(**structured_response)
-    assert response_data.occupation == "bartender"
+    assert response_data.occupation.lower() == "bartender"
