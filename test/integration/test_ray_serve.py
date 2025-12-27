@@ -20,7 +20,7 @@ def test_name_query_ray_server_call(
     text_response, structured_response = result
     assert text_response
     response_data = NameAgeOccupation(**structured_response)
-    # We don't assert specific values because small LLMs may not be reliable
+    assert response_data.name == "Bob"
 
 
 def test_age_query_ray_server_call(
@@ -40,9 +40,7 @@ def test_age_query_ray_server_call(
     text_response, structured_response = result
     assert text_response
     response_data = NameAgeOccupation(**structured_response)
-    # Age should be an integer if present
-    if response_data.age is not None:
-        assert isinstance(response_data.age, int)
+    assert response_data.age == 28
 
 
 def test_occupation_query_ray_server_call(
@@ -62,3 +60,4 @@ def test_occupation_query_ray_server_call(
     text_response, structured_response = result
     assert text_response
     response_data = NameAgeOccupation(**structured_response)
+    assert response_data.occupation == "bartender"
