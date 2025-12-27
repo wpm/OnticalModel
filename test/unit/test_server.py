@@ -550,24 +550,21 @@ def test_server_with_redis_url():
 
 
 def test_server_with_redis_connection_failure():
-    """Test OnticalModelServer falls back to MemorySaver when Redis fails."""
+    """Test OnticalModelServer raises exception when Redis connection fails."""
 
     with patch("ontical_model.server.RedisSaver") as mock_redis_saver:
         # Make Redis initialization fail
         mock_redis_saver.from_conn_string.side_effect = Exception("Connection refused")
 
-        # Create server with redis_url (should fall back to MemorySaver)
-        server = OnticalModelServer.func_or_class(
-            model_name="llama3.2:1b",
-            base_url="http://localhost:11434/v1",
-            api_key="test-key",
-            schema=NameAgeOccupation,
-            redis_url="redis://localhost:6379",
-        )
-
-        # Verify server was still created (fell back to MemorySaver)
-        assert server.model is not None
-        assert server.thread_prompts == {}
+        # Create server with redis_url (should raise exception)
+        with pytest.raises(Exception, match="Connection refused"):
+            OnticalModelServer.func_or_class(
+                model_name="llama3.2:1b",
+                base_url="http://localhost:11434/v1",
+                api_key="test-key",
+                schema=NameAgeOccupation,
+                redis_url="redis://localhost:6379",
+            )
 
 
 def test_server_without_redis_url():

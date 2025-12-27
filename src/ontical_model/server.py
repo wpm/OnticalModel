@@ -88,22 +88,13 @@ class OnticalModelServer(Generic[SCHEMA]):
         # Configure checkpointer based on redis_url
         checkpointer: Optional[BaseCheckpointSaver] = None
         if redis_url:
-            try:
-                from loguru import logger as log
+            from loguru import logger as log
 
-                log.debug(f"Connecting to Redis at {redis_url}")
-                checkpointer = RedisSaver.from_conn_string(redis_url)
-                log.debug("Setting up Redis indices...")
-                checkpointer.setup()  # Create required indices
-                log.info("Redis checkpointer initialized successfully")
-            except Exception as e:
-                from loguru import logger as log
-
-                log.warning(
-                    f"Failed to initialize Redis checkpointer: {e}. "
-                    "Falling back to MemorySaver"
-                )
-                checkpointer = None
+            log.debug(f"Connecting to Redis at {redis_url}")
+            checkpointer = RedisSaver.from_conn_string(redis_url)
+            log.debug("Setting up Redis indices...")
+            checkpointer.setup()  # Create required indices
+            log.info("Redis checkpointer initialized successfully")
 
         self.model = LangGraphAgent(
             llm_model, schema, initial_prompt=None, checkpointer=checkpointer
