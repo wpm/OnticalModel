@@ -159,14 +159,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Add automated review trigger
-        uses: actions/github-script@v7
+      - name: Run Claude Code Review
+        uses: anthropics/claude-code-action@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: '@claude Please review this pull request for code quality, potential bugs, test coverage, and documentation completeness.'
-            });
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
