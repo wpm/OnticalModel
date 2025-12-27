@@ -527,7 +527,7 @@ def test_server_with_redis_url():
     with patch("ontical_model.server.RedisSaver") as mock_redis_saver:
         # Mock the checkpointer
         mock_checkpointer = Mock()
-        mock_redis_saver.from_conn_string.return_value = mock_checkpointer
+        mock_redis_saver.return_value = mock_checkpointer
 
         # Create server with redis_url
         server = OnticalModelServer.func_or_class(
@@ -539,9 +539,7 @@ def test_server_with_redis_url():
         )
 
         # Verify RedisSaver was initialized
-        mock_redis_saver.from_conn_string.assert_called_once_with(
-            "redis://localhost:6379"
-        )
+        mock_redis_saver.assert_called_once_with(redis_url="redis://localhost:6379")
         mock_checkpointer.setup.assert_called_once()
 
         # Verify server was created
@@ -554,7 +552,7 @@ def test_server_with_redis_connection_failure():
 
     with patch("ontical_model.server.RedisSaver") as mock_redis_saver:
         # Make Redis initialization fail
-        mock_redis_saver.from_conn_string.side_effect = Exception("Connection refused")
+        mock_redis_saver.side_effect = Exception("Connection refused")
 
         # Create server with redis_url (should raise exception)
         with pytest.raises(Exception, match="Connection refused"):

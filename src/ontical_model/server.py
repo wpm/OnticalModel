@@ -91,7 +91,7 @@ class OnticalModelServer(Generic[SCHEMA]):
             from loguru import logger as log
 
             log.debug(f"Connecting to Redis at {redis_url}")
-            checkpointer = RedisSaver.from_conn_string(redis_url)
+            checkpointer = RedisSaver(redis_url=redis_url)
             log.debug("Setting up Redis indices...")
             checkpointer.setup()  # Create required indices
             log.info("Redis checkpointer initialized successfully")
