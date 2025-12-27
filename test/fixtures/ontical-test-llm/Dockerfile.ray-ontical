@@ -1,21 +1,54 @@
+# Dockerfile for ray-server and ontical-model-server services in docker-compose.yml
+#
+# This image provides the Ray environment with the OnticalModel package installed.
+# It's used by two services:
+#   - ray-server: Runs the Ray cluster head node
+#   - ontical-model-server: Deploys the OnticalModelServer application to Ray
+#
+# The image includes:
+#   - Ray framework for distributed computing
+#   - OnticalModel package installed in editable mode
+#   - Coverage tools for measuring code coverage in integration tests
+#   - Fixed msgpack dependency to resolve Ray compatibility issues
+#
+# The image is published to ghcr.io/wpm/onticalmodel/ray-ontical:latest and rebuilt
+# automatically when pyproject.toml, uv.lock, or this Dockerfile changes.
+#
+# Related files:
+#   - docker-compose.yml: ray-server and ontical-model-server service configurations
+#   - serve_config.yaml: Ray Serve application configuration (used by ontical-model-server)
+
 FROM rayproject/ray:latest
 
 # Set working directory
+# The /workspace directory is mounted from the host in docker-compose.yml
+# to enable live code updates during development
 WORKDIR /workspace
 
 # Copy project files
+# This copies the entire project context for the build process
 COPY . /workspace
 
+# Install system dependencies (curl for healthchecks)
+RUN sudo apt-get update && sudo apt-get install -y curl && sudo rm -rf /var/lib/apt/lists/*
+
 # Install OnticalModel package, coverage, and fix msgpack dependency conflict
+# - Install package in editable mode for development
+# - Upgrade msgpack to fix Ray compatibility issues
+# - Install coverage with TOML support for integration test coverage tracking
 RUN pip install -e . && \
     pip install --upgrade 'msgpack>=1.1.1' && \
     pip install 'coverage[toml]>=7.0.0'
 
 # Add workspace to PYTHONPATH so test module is importable
+# This allows Ray Serve to import test.schemas and other test modules
 ENV PYTHONPATH=/workspace:$PYTHONPATH
 
 # Create sitecustomize.py to enable subprocess coverage
+# This enables coverage tracking in Ray worker processes spawned during tests
+# The COVERAGE_PROCESS_START environment variable in docker-compose.yml activates this
 RUN echo "import coverage; coverage.process_startup()" > /home/ray/anaconda3/lib/python3.10/site-packages/sitecustomize.py
 
 # Set default command (will be overridden in docker-compose)
+# docker-compose.yml provides specific commands for ray-server and ontical-model-server
 CMD ["bash"]

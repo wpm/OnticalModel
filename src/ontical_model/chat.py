@@ -1,5 +1,5 @@
 """
-Support for pure-chat applications.
+Messager protocol and structured model output for pure-chat applications.
 """
 
 from __future__ import annotations

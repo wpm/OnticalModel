@@ -1,3 +1,10 @@
+# Ray Serve configuration for the ontical-model-server service in docker-compose.yml
+#
+# This configuration deploys the OnticalModelServer application to the Ray cluster,
+# connecting it to the llm-server container for LLM inference and redis container
+# for persistent checkpoint storage. The server is configured to use the
+# NameAgeOccupation schema for structured outputs.
+
 applications:
   - name: ontical-test-server
     import_path: ontical_model.server:app_builder
@@ -6,7 +13,7 @@ applications:
       model_name: "llama3.2:1b"
       base_url: "http://llm-server:11434/v1"
       api_key: "ollama"
-      schema_class: "test.schemas.Colors"
-      initial_prompt: "Answer questions accurately and succinctly."
+      schema_class: "test.schemas.NameAgeOccupation"
+      redis_url: "redis://redis:6379"
       temperature: 0.7
       max_tokens: 150

@@ -1,4 +1,43 @@
 services:
+  # Redis: Checkpoint storage for LangGraph agent state
+  #
+  # This container provides persistent storage for conversation checkpoints,
+  # allowing agents to maintain state across multiple interactions. Redis 8.0+
+  # includes RedisJSON and RediSearch modules by default, which are required
+  # for LangGraph's RedisSaver checkpointer.
+  #
+  # Not exposed externally - only accessible within docker network at redis:6379
+  #
+  # Health: Checks Redis ping to verify service is responding
+  # Volume: redis_data persists checkpoint data between test runs
+  redis:
+    image: redis:latest
+    container_name: redis
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # LLM Server: Ollama instance serving the llama3.2:1b model
+  #
+  # This container provides the core language model functionality for testing.
+  # It runs Ollama (https://ollama.ai) with the llama3.2:1b model pre-loaded
+  # for fast startup. The model is pulled on first startup and cached in the
+  # ollama_data volume for subsequent runs.
+  #
+  # Configuration files:
+  #   - Dockerfile.llm-server: Container image definition
+  #   - start-ollama.sh: Startup script that pulls the model
+  #
+  # Ports:
+  #   - 11434: Ollama HTTP API endpoint (OpenAI-compatible)
+  #
+  # Health: Checks /api/tags endpoint to verify Ollama is responding
+  # Volume: ollama_data persists downloaded models between container restarts
   llm-server:
     image: ghcr.io/wpm/onticalmodel/llm-server:latest
     build:
@@ -15,6 +54,29 @@ services:
       timeout: 5s
       retries: 5
 
+  # Ray Server: Ray cluster head node for distributed computing
+  #
+  # This container runs a Ray head node that coordinates the distributed execution
+  # of Ray Serve applications. It provides the infrastructure for deploying and
+  # scaling the OnticalModelServer.
+  #
+  # The container mounts the project workspace to enable live code updates during
+  # development. It starts a Ray cluster in head mode and keeps running via tail.
+  #
+  # Configuration files:
+  #   - Dockerfile.ray-ontical: Container image definition
+  #
+  # Ports:
+  #   - 8000: Ray Serve HTTP endpoint for deployed applications
+  #   - 10001: Ray Client port for remote job submission
+  #   - 6379: Ray Global Control Store (GCS) for cluster coordination
+  #
+  # Environment:
+  #   - LLM_HOST: Hostname for the Ollama server (used by tests)
+  #   - PYTHONPATH: Ensures project code is importable
+  #
+  # Health: Uses 'ray status' to verify the cluster is operational
+  # Depends: Waits for llm-server to start (but not be healthy)
   ray-server:
     image: ghcr.io/wpm/onticalmodel/ray-ontical:latest
     build:
@@ -22,22 +84,17 @@ services:
       dockerfile: test/fixtures/ontical-test-llm/Dockerfile.ray-ontical
     container_name: ray-server
     ports:
-      - "8265:8265"  # Ray dashboard
       - "8000:8000"  # Ray Serve
       - "10001:10001"  # Ray client
       - "6379:6379"  # Ray GCS
-      - "8081:8081"  # Metrics export
     volumes:
       - ../../../:/workspace
     working_dir: /workspace
     command: >
-      bash -c "ray start --head --node-ip-address=0.0.0.0 --dashboard-host=0.0.0.0 --port=6379 --dashboard-port=8265 --ray-client-server-port=10001 --metrics-export-port=8081 &&
+      bash -c "ray start --head --node-ip-address=0.0.0.0 --port=6379 --ray-client-server-port=10001 &&
                tail -f /dev/null"
     environment:
       - LLM_HOST=llm-server
-      - RAY_GRAFANA_HOST=http://grafana:3000
-      - RAY_GRAFANA_IFRAME_HOST=http://localhost:3001
-      - RAY_PROMETHEUS_HOST=http://prometheus:9090
       - PYTHONPATH=/workspace
     depends_on:
       llm-server:
@@ -48,6 +105,35 @@ services:
       timeout: 5s
       retries: 5
 
+  # Ontical Model Server: Ray Serve deployment of OnticalModelServer
+  #
+  # This container deploys the OnticalModelServer application to the Ray cluster.
+  # It uses 'ray serve run' to deploy the application defined in serve_config.yaml,
+  # which configures the LangGraphAgent with the NameAgeOccupation schema.
+  #
+  # The deployment connects to the Ray cluster as a client (via ray://ray-server:10001)
+  # and deploys the application to be served on the Ray cluster's HTTP endpoint
+  # (http://ray-server:8000/).
+  #
+  # Coverage tracking is enabled to measure code coverage during integration tests.
+  # The command wraps 'serve run' with 'coverage run' to collect execution data
+  # that gets merged with unit test coverage in CI.
+  #
+  # Configuration files:
+  #   - serve_config.yaml: Ray Serve application configuration
+  #   - Dockerfile.ray-ontical: Container image (shared with ray-server)
+  #
+  # Environment:
+  #   - RAY_ADDRESS: Ray cluster address for deployment
+  #   - RAY_LOG_LEVEL: Set to WARNING to reduce noise in test output
+  #   - PYTHONPATH: Ensures project code is importable
+  #   - COVERAGE_PROCESS_START: Enables coverage subprocess tracking
+  #
+  # Health: Checks the Ray Serve endpoint to verify deployment is responding
+  #   - Uses 30 retries with 30s start_period because deployment can be slow
+  #   - Integration tests wait for this healthcheck before running
+  #
+  # Depends: Waits for both ray-server and llm-server to be healthy before deploying
   ontical-model-server:
     image: ghcr.io/wpm/onticalmodel/ray-ontical:latest
     container_name: ontical-model-server
@@ -66,44 +152,15 @@ services:
         condition: service_healthy
       llm-server:
         condition: service_healthy
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"  # Prometheus UI
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-    depends_on:
-      - ray-server
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3001:3000"  # Grafana UI
-    volumes:
-      - ./grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
-      - ./grafana-dashboard-provider.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
-      - ./grafana-dashboards:/var/lib/grafana/dashboards
-      - grafana_data:/var/lib/grafana
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-      - GF_SECURITY_ALLOW_EMBEDDING=true
-      - GF_AUTH_DISABLE_LOGIN_FORM=false
-      - GF_SECURITY_COOKIE_SAMESITE=none
-      - GF_SECURITY_COOKIE_SECURE=false
-      - GF_SECURITY_X_FRAME_OPTIONS=SAMEORIGIN
-    depends_on:
-      - prometheus
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-X", "POST", "-H", "Content-Type: application/json", "-d", '["healthcheck", "ping"]', "http://ray-server:8000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
 
 volumes:
+  redis_data:
   ollama_data:
-  prometheus_data:
-  grafana_data:

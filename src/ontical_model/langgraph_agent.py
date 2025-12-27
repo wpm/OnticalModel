@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Type, TypedDict, Annotated, Generic, TypeVar
+from typing import Type, TypedDict, Annotated, Generic, TypeVar, Optional
 
 try:
     from typing import NotRequired  # Python 3.11+
@@ -10,6 +10,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.constants import END
 from langgraph.graph import add_messages, StateGraph
@@ -20,15 +21,21 @@ SCHEMA = TypeVar("SCHEMA", bound=BaseModel)
 
 class LangGraphAgent(Generic[SCHEMA]):
     """
-    LangGraphAgent is a wrapper around a single-node LangGraph agent that supports tools
-    and structured outputs.
+    LangGraphAgent is a wrapper around a single-node LangGraph agent structured outputs.
     """
 
-    def __init__(self, model: BaseChatModel, schema: Type[SCHEMA], initial_prompt: str):
+    def __init__(
+        self,
+        model: BaseChatModel,
+        schema: Type[SCHEMA],
+        initial_prompt: Optional[str] = None,
+        checkpointer: Optional[BaseCheckpointSaver] = None,
+    ):
         """
         :param model: The language model used for invoking and generating responses.
         :param schema: The schema type that defines the structured output for the model.
-        :param initial_prompt: The initial prompt used when processing new threads.
+        :param initial_prompt: Optional initial system message to prepend to a new thread
+        :param checkpointer: Optional checkpoint saver (defaults to MemorySaver for testing)
         """
 
         class State(TypedDict):
@@ -52,14 +59,18 @@ class LangGraphAgent(Generic[SCHEMA]):
         graph_builder.add_node(llm_node, llm)
         graph_builder.set_entry_point(llm_node)
         graph_builder.add_edge(llm_node, END)
-        self.graph = graph_builder.compile(checkpointer=MemorySaver())
+
+        # Use provided checkpointer or default to MemorySaver for testing
+        if checkpointer is None:
+            checkpointer = MemorySaver()
+        self.graph = graph_builder.compile(checkpointer=checkpointer)
 
     def __call__(self, thread_id: str, content: str) -> tuple[str, SCHEMA]:
         """
         Call the model with the given thread ID and content.
 
         :param thread_id: Identifier for the conversational thread.
-        :param content: Message content provided by the human user.
+        :param content: Message for the model to reply to.
         :return: A tuple containing the textual response and a structured response object.
         """
 
@@ -69,7 +80,7 @@ class LangGraphAgent(Generic[SCHEMA]):
 
         config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
         messages = []
-        if is_new_thread():
+        if is_new_thread() and self.initial_prompt:
             messages.append(SystemMessage(content=self.initial_prompt))
         messages.append(HumanMessage(content=content))
         agent_input = {"messages": messages}
@@ -77,6 +88,29 @@ class LangGraphAgent(Generic[SCHEMA]):
         text_response = result["messages"][-1].content
         structured_response = result["structured_response"]
         return text_response, structured_response
+
+    def clear_thread_checkpoint(self, thread_id: str) -> None:
+        """
+        Clear the checkpoint data for a specific thread.
+
+        This removes all conversation history stored in the MemorySaver for the
+        given thread, freeing up memory. Should be called when a thread is no
+        longer needed to prevent memory leaks.
+
+        :param thread_id: The thread identifier
+        """
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+        # MemorySaver stores checkpoints in memory using the thread_id as key
+        # We need to remove all checkpoint data for this thread
+        if hasattr(self.graph.checkpointer, "storage"):
+            # Remove all entries for this thread from the storage
+            keys_to_remove = [
+                key
+                for key in self.graph.checkpointer.storage.keys()
+                if key[0] == thread_id
+            ]
+            for key in keys_to_remove:
+                del self.graph.checkpointer.storage[key]
 
 
 @tool

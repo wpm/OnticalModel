@@ -1,4 +1,10 @@
 #!/bin/bash
+# Startup script for the llm-server service in docker-compose.yml
+#
+# This script starts the Ollama server, waits for it to be ready, pulls the
+# llama3.2:1b model, and keeps the server running. It's used as the CMD in
+# Dockerfile.llm-server.
+
 set -e
 
 # Start Ollama in the background
