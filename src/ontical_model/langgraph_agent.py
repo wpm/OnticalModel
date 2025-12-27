@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Type, TypedDict, Annotated, Generic, TypeVar, Optional
 
 try:
@@ -9,7 +8,6 @@ except ImportError:
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import tool
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.constants import END
@@ -105,16 +103,3 @@ class LangGraphAgent(Generic[SCHEMA]):
         if hasattr(self.graph.checkpointer, "storage"):
             # Remove the entire thread's checkpoint data
             self.graph.checkpointer.storage.pop(thread_id, None)
-
-
-@tool
-def time_difference(start: datetime, end: datetime) -> float:
-    """
-    Calculate the time difference in seconds between two timestamps.
-
-    :param start: The starting timestamp
-    :param end: The ending timestamp
-    :return: The difference in seconds (positive if end is after start)
-    """
-    delta = end - start
-    return delta.total_seconds()
