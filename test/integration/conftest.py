@@ -13,6 +13,7 @@ import os
 import pytest
 import ray
 from langchain_openai import ChatOpenAI
+from loguru import logger
 from pydantic import SecretStr
 from ray import serve
 
@@ -118,7 +119,7 @@ def ontical_model_server_url(bob_prompt: str, bob_thread_ids: list[str]):
                 response.result(timeout_s=60)
             except Exception as e:
                 # Log cleanup errors but don't fail the test
-                print(f"Warning: Failed to cleanup thread {thread_id}: {e}")
+                logger.warning(f"Failed to cleanup thread {thread_id}: {e}")
 
     finally:
         # Disconnect from Ray cluster

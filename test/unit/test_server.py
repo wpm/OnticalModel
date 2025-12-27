@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from pydantic import SecretStr
 
+from ontical_model.langgraph_agent import LangGraphAgent
 from ontical_model.server import OnticalModelServerArgs, OnticalModelServer, app_builder
 from test.schemas import NameAgeOccupation
 
@@ -484,3 +485,121 @@ async def test_ontical_model_server_call_without_thread_prompt(
     # Verify the model was called and initial_prompt was set to None
     mock_agent.assert_called_once_with("thread456", "What is your age?")
     assert server.model.initial_prompt is None
+
+
+def test_langgraph_agent_clear_thread_checkpoint():
+    """Test clearing thread checkpoint data."""
+    # Create a simple LangGraphAgent with MemorySaver
+    model = Mock()
+    model.invoke = Mock(return_value="text response")
+    model.with_structured_output = Mock(
+        return_value=Mock(
+            invoke=Mock(
+                return_value=NameAgeOccupation(
+                    name="Bob", age=28, occupation="bartender"
+                )
+            )
+        )
+    )
+
+    agent = LangGraphAgent(model, NameAgeOccupation)
+
+    # Call the agent to create some checkpoint data
+    agent("thread1", "Hello")
+    agent("thread2", "Hi")
+
+    # Verify checkpoints exist for both threads
+    # Storage keys are nested: storage["thread_id"][checkpoint_ns][checkpoint_id]
+    assert "thread1" in agent.graph.checkpointer.storage
+    assert "thread2" in agent.graph.checkpointer.storage
+
+    # Clear thread1's checkpoint
+    agent.clear_thread_checkpoint("thread1")
+
+    # Verify thread1 checkpoint is cleared but thread2 remains
+    assert "thread1" not in agent.graph.checkpointer.storage
+    assert "thread2" in agent.graph.checkpointer.storage
+
+
+def test_server_with_redis_url():
+    """Test OnticalModelServer initialization with Redis URL."""
+
+    with patch("ontical_model.server.RedisSaver") as mock_redis_saver:
+        # Mock the checkpointer
+        mock_checkpointer = Mock()
+        mock_redis_saver.from_conn_string.return_value = mock_checkpointer
+
+        # Create server with redis_url
+        server = OnticalModelServer.func_or_class(
+            model_name="llama3.2:1b",
+            base_url="http://localhost:11434/v1",
+            api_key="test-key",
+            schema=NameAgeOccupation,
+            redis_url="redis://localhost:6379",
+        )
+
+        # Verify RedisSaver was initialized
+        mock_redis_saver.from_conn_string.assert_called_once_with(
+            "redis://localhost:6379"
+        )
+        mock_checkpointer.setup.assert_called_once()
+
+        # Verify server was created
+        assert server.model is not None
+        assert server.thread_prompts == {}
+
+
+def test_server_with_redis_connection_failure():
+    """Test OnticalModelServer falls back to MemorySaver when Redis fails."""
+
+    with patch("ontical_model.server.RedisSaver") as mock_redis_saver:
+        # Make Redis initialization fail
+        mock_redis_saver.from_conn_string.side_effect = Exception("Connection refused")
+
+        # Create server with redis_url (should fall back to MemorySaver)
+        server = OnticalModelServer.func_or_class(
+            model_name="llama3.2:1b",
+            base_url="http://localhost:11434/v1",
+            api_key="test-key",
+            schema=NameAgeOccupation,
+            redis_url="redis://localhost:6379",
+        )
+
+        # Verify server was still created (fell back to MemorySaver)
+        assert server.model is not None
+        assert server.thread_prompts == {}
+
+
+def test_server_without_redis_url():
+    """Test OnticalModelServer initialization without Redis (uses MemorySaver)."""
+    server = OnticalModelServer.func_or_class(
+        model_name="llama3.2:1b",
+        base_url="http://localhost:11434/v1",
+        api_key="test-key",
+        schema=NameAgeOccupation,
+    )
+
+    # Verify server was created with MemorySaver
+    assert server.model is not None
+    assert server.thread_prompts == {}
+    # MemorySaver should be used (has 'storage' attribute)
+    assert hasattr(server.model.graph.checkpointer, "storage")
+
+
+def test_clear_thread_checkpoint_method():
+    """Test OnticalModelServer.clear_thread_checkpoint method."""
+    server = OnticalModelServer.func_or_class(
+        model_name="llama3.2:1b",
+        base_url="http://localhost:11434/v1",
+        api_key="test-key",
+        schema=NameAgeOccupation,
+    )
+
+    # Mock the model's clear_thread_checkpoint method
+    server.model.clear_thread_checkpoint = Mock()
+
+    # Call clear_thread_checkpoint
+    server.clear_thread_checkpoint("thread123")
+
+    # Verify it was delegated to the model
+    server.model.clear_thread_checkpoint.assert_called_once_with("thread123")

@@ -46,7 +46,7 @@ class OnticalModelServerArgs(BaseModel):
     def convert_api_key_to_secret_str(cls, value):
         """Convert string api_key to SecretStr."""
         if isinstance(value, str):
-            return SecretStr(value)
+            value = SecretStr(value)
         return value
 
 
@@ -89,14 +89,20 @@ class OnticalModelServer(Generic[SCHEMA]):
         checkpointer: Optional[BaseCheckpointSaver] = None
         if redis_url:
             try:
-                print(f"Connecting to Redis at {redis_url}")
+                from loguru import logger as log
+
+                log.debug(f"Connecting to Redis at {redis_url}")
                 checkpointer = RedisSaver.from_conn_string(redis_url)
-                print("Setting up Redis indices...")
+                log.debug("Setting up Redis indices...")
                 checkpointer.setup()  # Create required indices
-                print("Redis checkpointer initialized successfully")
+                log.info("Redis checkpointer initialized successfully")
             except Exception as e:
-                print(f"WARNING: Failed to initialize Redis checkpointer: {e}")
-                print("Falling back to MemorySaver")
+                from loguru import logger as log
+
+                log.warning(
+                    f"Failed to initialize Redis checkpointer: {e}. "
+                    "Falling back to MemorySaver"
+                )
                 checkpointer = None
 
         self.model = LangGraphAgent(

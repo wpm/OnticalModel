@@ -12,6 +12,18 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from loguru import logger
+
+
+@pytest.fixture(scope="session", autouse=True)
+def configure_logging():
+    """Configure loguru to use DEBUG level for all tests."""
+    logger.remove()  # Remove default handler
+    logger.add(
+        lambda msg: print(msg, end=""),  # Print to stdout
+        level="DEBUG",
+        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+    )
 
 
 @pytest.fixture

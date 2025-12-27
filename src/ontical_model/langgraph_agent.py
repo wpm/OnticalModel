@@ -100,17 +100,11 @@ class LangGraphAgent(Generic[SCHEMA]):
         :param thread_id: The thread identifier
         """
         config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
-        # MemorySaver stores checkpoints in memory using the thread_id as key
-        # We need to remove all checkpoint data for this thread
+        # MemorySaver/InMemorySaver stores checkpoints using thread_id as top-level key
+        # Storage structure: storage[thread_id][checkpoint_ns][checkpoint_id]
         if hasattr(self.graph.checkpointer, "storage"):
-            # Remove all entries for this thread from the storage
-            keys_to_remove = [
-                key
-                for key in self.graph.checkpointer.storage.keys()
-                if key[0] == thread_id
-            ]
-            for key in keys_to_remove:
-                del self.graph.checkpointer.storage[key]
+            # Remove the entire thread's checkpoint data
+            self.graph.checkpointer.storage.pop(thread_id, None)
 
 
 @tool
